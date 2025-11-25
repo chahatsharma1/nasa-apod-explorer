@@ -9,6 +9,7 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class NasaApiClient {
+
     private final WebClient webClient;
 
     @Value("${NASA_API_KEY}")
@@ -20,41 +21,34 @@ public class NasaApiClient {
         this.webClient = webClientBuilder.baseUrl(BASE_URL).build();
     }
 
-    public ApodResponse getApod(String date) {
+    public ApodResponse getApod(String usaDate) {
         return webClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder.queryParam("api_key", apiKey);
 
-                    if (date != null && !date.isBlank()) {
-                        uriBuilder.queryParam("date", date);
+                    if (usaDate != null && !usaDate.isBlank()) {
+                        uriBuilder.queryParam("date", usaDate);
                     }
 
-                    return uriBuilder.build();
-                })
-                .retrieve()
-                .onStatus(
+                    return uriBuilder.build();}).retrieve().onStatus(
                         status -> status.is4xxClientError() || status.is5xxServerError(),
                         clientResponse -> clientResponse.bodyToMono(String.class)
-                                .flatMap(body -> Mono.error(new NasaApiException("NASA API Error: " + body)))
-                )
+                                .flatMap(body -> Mono.error(new NasaApiException("NASA API Error: " + body))))
                 .bodyToMono(ApodResponse.class)
                 .block();
     }
 
-    public ApodResponse[] getApodRange(String startDate, String endDate) {
+    public ApodResponse[] getApodRange(String usaStartDate, String usaEndDate) {
+
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .queryParam("api_key", apiKey)
-                        .queryParam("start_date", startDate)
-                        .queryParam("end_date", endDate)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(
+                        .queryParam("start_date", usaStartDate)
+                        .queryParam("end_date", usaEndDate)
+                        .build()).retrieve().onStatus(
                         status -> status.is4xxClientError() || status.is5xxServerError(),
                         clientResponse -> clientResponse.bodyToMono(String.class)
-                                .flatMap(body -> Mono.error(new NasaApiException("NASA API Error: " + body)))
-                )
+                                .flatMap(body -> Mono.error(new NasaApiException("NASA API Error: " + body))))
                 .bodyToMono(ApodResponse[].class)
                 .block();
     }

@@ -2,14 +2,17 @@ package com.nasa.apod.service;
 
 import com.nasa.apod.client.NasaApiClient;
 import com.nasa.apod.model.ApodResponse;
+import com.nasa.apod.utils.DateUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class ApodService {
+
     private final NasaApiClient nasaApiClient;
 
     public ApodService(NasaApiClient nasaApiClient) {
@@ -18,36 +21,53 @@ public class ApodService {
 
     @Cacheable(value = "apodCache", key = "#date")
     public ApodResponse getApodByDate(String date) {
-        validateDate(date);
-        return nasaApiClient.getApod(date);
+        LocalDate parsed = parse(date);
+        LocalDate corrected = adjustForUSAToday(parsed);
+        validateUSADate(corrected);
+        return nasaApiClient.getApod(corrected.toString());
     }
 
     @Cacheable(value = "apodCache", key = "'today'")
     public ApodResponse getCachedToday() {
-        return nasaApiClient.getApod(null);
+        LocalDate indiaToday = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        LocalDate corrected = adjustForUSAToday(indiaToday);
+        validateUSADate(corrected);
+        return nasaApiClient.getApod(corrected.toString());
     }
 
     public List<ApodResponse> getApodRange(String startDate, String endDate) {
-        validateDate(startDate);
-        validateDate(endDate);
-
-        return List.of(nasaApiClient.getApodRange(startDate, endDate));
+        LocalDate startParsed = parse(startDate);
+        LocalDate endParsed = parse(endDate);
+        LocalDate correctedEnd = adjustForUSAToday(endParsed);
+        validateUSADate(startParsed);
+        validateUSADate(correctedEnd);
+        return List.of(nasaApiClient.getApodRange(startParsed.toString(), correctedEnd.toString()));
     }
 
-    private void validateDate(String date) {
+    private LocalDate adjustForUSAToday(LocalDate date) {
+        LocalDate usaToday = DateUtils.todayUSA();
+        LocalDate indiaToday = LocalDate.now(ZoneId.of("Asia/Kolkata"));
+        if (date.equals(indiaToday) && !indiaToday.equals(usaToday)) {
+            return usaToday;
+        }
+        return date;
+    }
+
+    private LocalDate parse(String date) {
         try {
-            LocalDate parsed = LocalDate.parse(date);
-
-            if (parsed.isAfter(LocalDate.now())) {
-                throw new IllegalArgumentException("Date cannot be in the future");
-            }
-
-            if (parsed.isBefore(LocalDate.of(1995, 6, 16))) {
-                throw new IllegalArgumentException("APOD not available before 1995-06-16");
-            }
-
+            return LocalDate.parse(date);
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid date format. Use YYYY-MM-DD");
+        }
+    }
+
+    private void validateUSADate(LocalDate usaDate) {
+        LocalDate usaToday = DateUtils.todayUSA();
+        if (usaDate.isAfter(usaToday)) {
+            throw new IllegalArgumentException("Date cannot be in the future (NASA time).");
+        }
+        if (usaDate.isBefore(LocalDate.of(1995, 6, 16))) {
+            throw new IllegalArgumentException("APOD not available before 1995-06-16.");
         }
     }
 }
