@@ -14,3 +14,4 @@ frontend/.firebaserc
 .env.production
 .npm/
 coverage/
+application-dev.properties
