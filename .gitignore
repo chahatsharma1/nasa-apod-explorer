@@ -20,3 +20,4 @@ yarn-error.log*
 pnpm-debug.log*
 .npm/
 coverage/
+backend/src/main/resources/application-dev.properties
