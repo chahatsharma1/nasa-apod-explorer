@@ -8,7 +8,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/apod")
-@CrossOrigin(origins = "*")
 public class ApodController {
 
     private final ApodService apodService;
